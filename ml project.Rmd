@@ -1,0 +1,417 @@
+---
+title: "ml project"
+author: "Ivy Zhao"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+
+```{r setup, include = FALSE}
+knitr::opts_knit$set(root.dir = "/Users/jiayizhao/Desktop/2338 Machine Learning", echo = TRUE)
+```
+
+# Predicting Heart Disease
+
+The `heart` dataset (source: UCI Machine Learning Repository) contains 920 observations and 76 variables. However, we're only using the following 14 of the 76 variables in our study: 
+
+* `age`: patient age (in years)
+* `sex`: gender of patient; 0 = male, 1 = female
+* `cp`: chest pain type; 1 = typical angina, 2 = atypical angina, 3 = non-anginal pain, 4 = asymptomatic
+* `trestbps`: resting blood pressure (in mmHg)
+* `chol`: serum cholesterol (in mg/dl)
+* `fbs`: fasting blood sugar > 120 mg/dl; 0 = false, 1 = true
+* `restecg`: resting electrocardiographic results; 0 = normal, 1 = having ST-T wave abnormality, 2 = showing probable or definite left ventricular hypertrophy by Ester's criteria
+* `thalach`: maximum heart race achieved
+* `exang`: exercise included angina; 0 = no, 1 = yes
+* `oldpeak`: ST depression induced by exercise relative to rest
+* `slope`: the slope of the peak exercise ST segment; 1 = upsloping, 2 = flat, 3 = downsloping
+* `ca`: number of major vessels (0-3) colored by fluoroscopy
+* `thal`: thalassemia; 3 = normal, 6 = fixed defect, 7 = reversible defect
+* `num`: diagosis of heart disease; 0 = no heart disease, 1 = have heart disease
+
+# Load, Merge, and Recode Data
+```{r}
+library(dplyr)
+
+cleveland <- read.csv("/Users/jiayizhao/Desktop/2338 Machine Learning/heart_disease_final_data/processed.cleveland.csv")
+hungarian <- read.csv("/Users/jiayizhao/Desktop/2338 Machine Learning/heart_disease_final_data/processed.hungarian.csv")
+switzerland <- read.csv("/Users/jiayizhao/Desktop/2338 Machine Learning/heart_disease_final_data/processed.switzerland.csv")
+va <- read.csv("/Users/jiayizhao/Desktop/2338 Machine Learning/heart_disease_final_data/processed.va.csv")
+
+
+
+nrow(cleveland)
+nrow(hungarian)
+nrow(switzerland)
+nrow(va)
+
+heart <- rbind(cleveland, hungarian, switzerland, va)
+
+# check for missing values
+heart[heart == "?"] <- NA
+sum(is.na(heart))
+sapply(heart, function(x) sum(is.na(x)))
+
+nrow(heart)
+ncol(heart)
+```
+
+# Univariable Analysis
+```{r}
+library(dplyr)
+heart$age <- as.numeric(heart$age)
+heart$trestbps <- as.numeric(heart$trestbps)
+heart$chol <- as.numeric(heart$chol)
+heart$thalach <- as.numeric(heart$thalach)
+heart$oldpeak <- as.numeric(heart$oldpeak)
+heart <- na.omit(heart)
+#Univariate Analysis on Continuous Data
+summary(heart)
+sd_values <- sapply(heart[, c("age", "trestbps", "chol", "thalach", "oldpeak")], sd)
+print(sd_values)
+
+#Univariate Analysis on Categorical Data
+sex_counts <- table(heart$sex) 
+sex_percentages <- prop.table(sex_counts) * 100
+sex_summary <- data.frame(sex = names(sex_counts),
+                             Count = as.numeric(sex_counts),
+                             Percentage = sex_percentages)
+print(sex_summary)
+
+cp_counts <- table(heart$cp) 
+cp_percentages <- prop.table(cp_counts) * 100
+cp_summary <- data.frame(cp = names(cp_counts),
+                             Count = as.numeric(cp_counts),
+                             Percentage = cp_percentages)
+print(cp_summary)
+
+fbs_counts <- table(heart$fbs) 
+fbs_percentages <- prop.table(fbs_counts) * 100
+fbs_summary <- data.frame(fbs = names(fbs_counts),
+                             Count = as.numeric(fbs_counts),
+                             Percentage = fbs_percentages)
+print(fbs_summary)
+
+restecg_counts <- table(heart$restecg) 
+restecg_percentages <- prop.table(restecg_counts) * 100
+restecg_summary <- data.frame(restecg = names(restecg_counts),
+                             Count = as.numeric(restecg_counts),
+                             Percentage = restecg_percentages)
+print(restecg_summary)
+
+exang_counts <- table(heart$exang) 
+exang_percentages <- prop.table(exang_counts) * 100
+exang_summary <- data.frame(exang = names(exang_counts),
+                             Count = as.numeric(exang_counts),
+                             Percentage = exang_percentages)
+print(exang_summary)
+
+slope_counts <- table(heart$slope) 
+slope_percentages <- prop.table(slope_counts) * 100
+slope_summary <- data.frame(slope = names(slope_counts),
+                             Count = as.numeric(slope_counts),
+                             Percentage = slope_percentages)
+print(slope_summary)
+
+ca_counts <- table(heart$ca) 
+ca_percentages <- prop.table(ca_counts) * 100
+ca_summary <- data.frame(ca = names(ca_counts),
+                             Count = as.numeric(ca_counts),
+                             Percentage = ca_percentages)
+print(ca_summary)
+
+thal_counts <- table(heart$thal) 
+thal_percentages <- prop.table(thal_counts) * 100
+thal_summary <- data.frame(thal = names(thal_counts),
+                             Count = as.numeric(thal_counts),
+                             Percentage = thal_percentages)
+print(thal_summary)
+
+num_counts <- table(heart$num) 
+num_percentages <- prop.table(num_counts) * 100
+num_summary <- data.frame(num = names(num_counts),
+                             Count = as.numeric(num_counts),
+                             Percentage = num_percentages)
+print(num_summary)
+```
+
+# Correlation Heatmap
+```{r}
+library(reshape2)
+cor_matrix <- cor(heart[, c("age", "trestbps", "chol", "thalach", "oldpeak")])
+melted_cor_matrix <- melt(cor_matrix)
+
+library(ggplot2)
+ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
+  geom_tile(color = "white") +  
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0, limit = c(-1,1), space = "Lab", name="Correlation") +
+  theme_minimal() + 
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, size = 8, hjust = 1), 
+    axis.text.y = element_text(size = 8) 
+  ) +
+  labs(x = "", y = "", title = "") 
+```
+#Bar Chart
+```{r}
+
+```
+
+
+# Deal with NA's
+```{r}
+#convert integers to numeric, standardization and replace na with median
+heart$age <- as.numeric(heart$age)
+heart$age <- scale(heart$age)
+heart$age[is.na(heart$age)] <- median(heart$age, na.rm = TRUE)
+
+heart$trestbps <- as.numeric(heart$trestbps)
+heart$trestbps <- scale(heart$trestbps)
+heart$trestbps[is.na(heart$trestbps)] <- median(heart$trestbps, na.rm = TRUE)
+
+heart$chol <- as.numeric(heart$chol)
+heart$chol <- scale(heart$chol)
+heart$chol[is.na(heart$chol)] <- median(heart$chol, na.rm = TRUE)
+
+heart$thalach <- as.numeric(heart$thalach)
+heart$thalach <- scale(heart$thalach)
+heart$thalach[is.na(heart$thalach)] <- median(heart$thalach, na.rm = TRUE)
+
+heart$oldpeak <- as.numeric(heart$oldpeak)
+heart$oldpeak <- scale(heart$oldpeak)
+heart$oldpeak[is.na(heart$oldpeak)] <- median(heart$oldpeak, na.rm = TRUE)
+
+#replace NA values in the character variables into mode
+heart$fbs <- ifelse(is.na(heart$fbs), names(which.max(table(heart$fbs))), heart$fbs)
+
+heart$restecg <- ifelse(is.na(heart$restecg), names(which.max(table(heart$restecg))), heart$restecg)
+
+heart$exang <- ifelse(is.na(heart$exang), names(which.max(table(heart$exang))), heart$exang)
+
+heart$slope <- ifelse(is.na(heart$slope), names(which.max(table(heart$slope))), heart$slope)
+
+#remove ca & thal, as more than half of their observations are mising values.
+heart$ca <- NULL
+heart$thal <- NULL
+
+#check for missing values
+sum(is.na(heart))
+sapply(heart, function(x) sum(is.na(x)))
+
+#convert character variables into factors
+heart$sex <- factor(heart$sex, 
+                    levels = c(0, 1), 
+                    labels = c("male", "female"))
+
+heart$cp <- factor(heart$cp, 
+                    levels = c(1, 2, 3, 4), 
+                    labels = c("typical angina", "atypial angina", "non-anginal pain", "asymptomatic"))
+
+heart$fbs <- factor(heart$fbs, 
+                    levels = c(0, 1), 
+                    labels = c("false", "true"))
+
+heart$restecg <- factor(heart$restecg, 
+                    levels = c(0, 1, 2), 
+                    labels = c("normal", "abonormal", "left ventricular hypertrophy"))
+
+heart$exang <- factor(heart$exang, 
+                    levels = c(0, 1), 
+                    labels = c("no", "yes"))
+
+heart$slope <- factor(heart$slope, 
+                    levels = c(1, 2, 3), 
+                    labels = c("upsloping", "flat", "downsloping"))
+
+heart$num <- as.integer(heart$num > 0)
+heart$num <- factor(heart$num, 
+                    levels = c(0, 1), 
+                    labels = c("no", "yes"))
+```
+# Initial Data Preparation
+```{r}
+library(tidyverse)
+library(caret)
+
+set.seed(123)
+
+tr_ind <- sample(1:nrow(heart), 0.8 * nrow(heart))
+heart_train <- heart[tr_ind, ]
+heart_test <- heart[-tr_ind, ]
+```
+
+# Random Forest & Gradient Boosting
+```{r}
+# Random Forest
+library(randomForest)
+library(e1071)
+library(caret)
+
+set.seed(123)
+rf.hd <- randomForest(num ~., data =heart_train,importance=TRUE)
+rf.hd
+
+# Split the test dataset into predictors (X_test) and outcome (y_test)
+X_test <- heart_test[, -which(names(heart_test) == "num")]  # Exclude the outcome variable
+y_test <- heart_test$num
+# Make predictions
+predictions <- predict(rf.hd, X_test)
+# Evaluate the model
+confusion_matrix <- confusionMatrix(predictions, 
+                                    y_test,
+                                    mode = "everything")
+print(confusion_matrix)
+# Accuracy = 0.788 
+# F1 = 0.7153  
+
+# Training Error = 0.1997283
+predict.train <- predict(rf.hd, new_data = heart_train,type= "response")
+mean(predict.train != heart_train$num)
+
+# Testing Error = 0.2119565
+predict.test <- predict(rf.hd,newdata = heart_test)
+mean(predict.test != heart_test$num)
+
+# AUCROC
+library(pROC)
+predictions.prob <- predict(rf.hd, X_test, type = "prob")
+roc.rf <- roc(response = y_test, predictor = predictions.prob[,2], plot = TRUE)
+print(auc(roc.rf))
+# auc = 0.8754
+```
+
+
+
+
+```{r}
+#K-fold cross-validation
+library(caret)
+ctrl <- trainControl(method = "cv", number = 5, search = "grid")
+tune_grid <- expand.grid(mtry = c(2, 4, 6, 8))
+
+# Train the Random Forest model
+rf_tuned <- train(num ~ .,                
+                  data = heart_train,       # Training dataset
+                  method = "rf",            # Method for Random Forest
+                  metric = "Accuracy",      # Metric to optimize
+                  trControl = ctrl,         # Training control setup
+                  tuneGrid = tune_grid)     # Grid of hyperparameters
+rf_tuned
+#The final value used for the model was mtry = 2.
+
+# Make predictions on the test set using the tuned model
+predictions_tuned <- predict(rf_tuned, X_test)
+
+# Evaluate the tuned model
+confusion_matrix_tuned <- confusionMatrix(predictions_tuned, y_test,,
+                                    mode = "everything")
+print(confusion_matrix_tuned)
+#Accuracy = 0.8207 
+#F1 = 0.7660 
+
+# Training Error = 0.0611413
+predict.train <- predict(rf_tuned, newdata = heart_train)
+mean(predict.train != heart_train$num)
+
+# Testing Error = 0.1793478
+predict.test <- predict(rf_tuned,newdata = heart_test)
+mean(predict.test != heart_test$num)
+
+# AUCROC
+predictions.prob <- predict(rf_tuned, X_test, type = "prob")
+roc.tuned.rf <- roc(response = y_test, predictor = predictions.prob[,2], plot = TRUE)
+print(auc(roc.tuned.rf))
+# auc = 0.8963
+```
+
+```{r echo=FALSE}
+# Gradient Boosting
+library(gbm)
+library(caret)
+
+unique(heart_train$num)
+heart_train$num <- ifelse(heart_train$num == "no", 0, 1)
+unique(heart_test$num)
+heart_test$num <- ifelse(heart_test$num == "no", 0, 1)
+
+# Fit model
+set.seed(123)
+boost.hd <- gbm(num ~ ., data = heart_train, distribution = "bernoulli", n.trees = 1000, interaction.depth = 1, cv.folds = 5)
+
+# Training Error = 0.1182065
+predict_train <- predict(boost.hd, n.trees = 1000, type = "response", newdata = heart_train)
+predicted_train_classes <- ifelse(predict_train > 0.5, 1, 0)
+mean(predicted_train_classes != heart_train$num)
+
+# Testing Error = 0.1956522
+predict_test <- predict(boost.hd, n.trees = 1000, type = "response", newdata = heart_test)
+predicted_test_classes <- ifelse(predict_test > 0.5, 1, 0)
+mean(predicted_test_classes != heart_test$num)
+
+# Confusion Matrix 
+predictions_test <- factor(predicted_test_classes, levels = c(0, 1), labels = c("no", "yes"))
+y_test <- factor(heart_test$num, levels = c(0, 1), labels = c("no", "yes"))
+conf_matrix_test <- confusionMatrix(predictions_test, y_test, mode = "everything")
+
+print(conf_matrix_test)
+# accuracy = 0.8043
+# F1 = 0.7534
+
+# AUCROC
+library(pROC)
+predictions.prob <- predict(boost.hd, newdata = X_test, type = "response")
+y_test <- factor(y_test, levels = c("no", "yes"))
+roc.gbm <- roc(response = y_test, predictor = predictions.prob, plot = TRUE)
+auc(roc.gbm)
+# auc = 0.9017
+```
+
+
+```{r echo = FALSE} 
+#K-fold cross-validation
+library(caret)
+library(pROC)
+ctrl <- trainControl(method = "cv", number = 5, search = "grid")
+tune_grid <- expand.grid(
+  n.trees = c(150),                   # Number of trees
+  interaction.depth = c(1, 3, 5),     # Interaction depth
+  shrinkage = c(0.01),                # Shrinkage or learning rate
+  n.minobsinnode = c(5, 10, 15)       # Minimum number of observations in nodes
+)
+
+# Train the GBM model
+heart_train$num <- as.factor(ifelse(heart_train$num == 0, "no", "yes"))
+boost_tuned <- train(num ~ .,                  # Formula
+                     data = heart_train,       # Training dataset
+                     method = "gbm",          # Method for boosting
+                     metric = "Accuracy",     # Metric to optimize
+                     trControl = ctrl,        # Training control setup
+                     tuneGrid = tune_grid)      # Grid of hyperparameters
+boost_tuned
+```
+
+```{r}
+# Training Error =0.5027174
+predict_train <- predict(boost_tuned, n.trees = 1000, type = "prob", newdata = heart_train)
+predicted_train_classes <- ifelse(predict_train[, 2] > 0.5, 1, 0) 
+mean(predicted_train_classes != heart_test$num)
+
+# Testing Error = 0.1793478
+predict_test <- predict(boost_tuned, n.trees = 1000, type = "prob", newdata = heart_test)
+predicted_test_classes <- ifelse(predict_test[, 2] > 0.5, 1, 0) 
+mean(predicted_test_classes != heart_test$num)
+
+# Confusion Matrix 
+predictions_test <- factor(predicted_test_classes, levels = c(0, 1), labels = c("no", "yes"))
+conf_matrix_test <- confusionMatrix(predictions_test, y_test,mode = "everything")
+print(conf_matrix_test)
+# accuracy =  0.8207
+# F1 = 0.7519 
+
+# AUCROC
+predictions.prob <- predict(boost_tuned, X_test, type = "prob")
+roc.tuned.gbm <- roc(response = y_test, predictor = predictions.prob[,2], plot = TRUE)
+print(auc(roc.tuned.gbm))
+# auc = 0.904
+```
+
