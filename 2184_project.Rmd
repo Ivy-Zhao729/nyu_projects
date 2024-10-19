@@ -1,0 +1,131 @@
+---
+title: "2184_project"
+author: "Ivy Zhao"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+The ongoing COVID-19 pandemic has had a severe impact on global health, economies, and societies. Determining the patterns and trends of COVID-19 cases and deaths is essential for developing public health initiatives and making well-informed decisions for policymakers, medical experts, and the general public. This research will examine the COVID-19 data that is accessible through The New York Times GitHub site.The three main datasets `us.csv`, `us-states.csv`, and `us-counties.csv` will be the main information sources.
+
+# Research Questions
+1. What is the overall trend of COVID-19 cases and deaths in the United States in year 2020?
+2. How does the COVID-19 situation vary across different states and counties in year 2020?
+
+
+# Package Required
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+```
+
+# Data Import and Cleaning
+The COVID-19 data was obtained from [The New York Times GitHub repository](https://github.com/nytimes/covid-19-data).These datasets were regularly updated to track COVID-19 with daily reports and included variables such as date, cases, deaths, and additional information at the state and county levels. Missing values were recorded as NA.
+```{echo = FALSE }
+# The data was imported using the `read_csv` function from the `readr` package. 
+library(readr)
+us <- read_csv("us.csv")
+us_states <- read_csv("us-states.csv")
+us_counties <- read_csv("us-counties.csv")
+
+# Remove missing values using na.omit function.
+us <- na.omit(us)
+us_states <- na.omit(us_states)
+us_counties <- na.omit(us_counties)
+```
+
+# Overall Trends
+ggplot2 package was used to initialize a time series plot to visualize the overall trend for COVID-19 cases over time. The aes function specifies the aesthetics (x-axis as "date" and y-axis as "cases"), geom_line adds a line to represent the cases, and labs sets the title and axis labels. The theme_minimal function adjusts the plot's appearance. Two time series plots were created: one plots cases over time, and the other plots deaths over time. By comparing the two plots, it is possible to observe patterns and trends in the progression of COVID-19 cases and deaths.
+
+```{r}
+us <- read_csv("us.csv")
+# time series plot for COVID-19 cases
+ggplot(us, aes(x = date, y = cases)) +
+  geom_line(color = "pink", size = 1) +
+  labs(title = "COVID-19 Cases Over Time in the United States",
+       x = "Date",
+       y = "Number of Cases") +
+  theme_minimal()
+```
+
+```{R}
+# time series plot for COVID-19 deaths
+ggplot(us, aes(x = date, y = deaths)) +
+  geom_line(color = "turquoise", size = 1) +
+  labs(title = "COVID-19 Deaths Over Time in the United States",
+       x = "Date",
+       y = "Number of Deaths") +
+  theme_minimal()
+```
+The time series plots visualizing the progression of COVID-19 for both the cases and deaths across the U.S. indicate a rising trend of COVID-19 over time, as both lines are sloped upwards. From January 2020 to March 2020, there were plateaus in both cases and deaths, indicating stability due to proper control measures. Starting in April 2020, there was a sharp increase in both cases and deaths, maintaining a steep slope increase until January 2021. This steep growing pattern suggests a vulnerable period for public health. The observed trend is essential for policy makers to make connection between variables like temperature, population density, social events and the effectiveness of disease containment measures.For instance, the sharp increase in April 2020 may be attributed to seasonal factors that increased community transmission. 
+
+# Growth Rate
+The rate of change in cases and deaths over time can be analyzed through growth rate. The growth rate is useful when dealing with time-series data, as it allows for the quantification of the percentage change through time. The initial step involves calculating the growth rates for both cases and deaths, which is achieved by differencing the logarithm of the cumulative counts. The resulting growth rates are then visualized over time in a line plot. This graphical representation aims to uncover trends and patterns in the rates of COVID-19 cases and deaths, providing a clearer picture of the evolving impact of the virus.
+```{r}
+us <- read_csv("us.csv")
+growth_rate <- us %>%
+  arrange(date) %>% 
+  mutate(growth_rate_cases = c(NA, diff(log(cases)) * 100),
+         growth_rate_deaths = c(NA, diff(log(deaths)) * 100)) %>%
+  filter(!is.na(growth_rate_cases) & !is.na(growth_rate_deaths)) 
+
+# This set of code reads a CSV file named "us.csv," arranges the data by date, and calculates the growth rates of COVID-19 cases and deaths in percentage terms, storing the results in the variables "growth_rate_cases" and "growth_rate_deaths," while filtering out rows with missing growth rate values.
+```
+
+```{R}
+ggplot(growth_rate, aes(x = date)) +
+  geom_line(aes(y = growth_rate_cases, color = "Cases"), size = 0.8) +
+  geom_line(aes(y = growth_rate_deaths, color = "Deaths"), size = 0.8) +
+  labs(title = "COVID-19 Growth Rates Over Time",
+       x = "Date",
+       y = "Growth Rate") +
+  theme_minimal()
+
+# This set of code generates a line plot using ggplot, visualizing the growth rates of COVID-19 cases and deaths over time, with distinct lines representing each variable.
+```
+The growth rate plot visually represents the dynamics of COVID-19 cases and deaths in 2020. The pink line illustrates the growth rate of COVID-19 cases,and the turquoise line portrays the growth rate of deaths. Both cases and deaths have the most peaks from starting late February to late April signal phases of rapid case proliferation. Variations in this line offer valuable information regarding the impact of the virus on mortality rates. From late April to the beginning of Jan 2021, both cases and deaths are having troughs could indicate periods of relative stability. This dual-line plot allows exam both case and death growth rates simultaneously. For example, we can observe that at the beginning of all peaks, cases exceeded deaths, and then deaths exceeded cases, indicating dynamic shifts in the progression.
+
+# State and County Analysis
+```{r}
+us_states <- read_csv("us-states.csv")
+# top states by total deaths
+states_death <- us_states %>%
+  group_by(state) %>% 
+  summarize(total_deaths = sum(deaths)) %>%
+  arrange(desc(total_deaths)) %>%
+  head(10)
+states_death
+
+# This set of code calculates the total deaths for each U.S. state, arranges the states in descending order based on total deaths, and then selects the top 10 states with the highest total deaths, storing the result in the states_death data frame.
+```
+
+The table shows the top 10 states with the highest total deaths due to COVID-19. Due to its large population density, New York leads with a significant total of 8,823,684 deaths, followed by New Jersey with 4,072,133 deaths. Florida, Texas, and California are also heavily represented, with each state reporting more than two million deaths overall. These results demonstrated the pandemic's major effects on states with high population densities. The distribution emphasizes the regional differences in the impact severity of the epidemic, highlighting the significance of focused public health initiatives and interventions in areas with greater death rates. 
+
+```{R}
+# top states by total cases
+states_cases <- us_states %>%
+  group_by(state) %>%
+  summarize(total_cases = sum(cases)) %>%
+  arrange(desc(total_cases)) 
+states_cases
+```
+
+```{R}
+# combined table with descending totol cases
+combined_table <- left_join(states_death, states_cases, by = "state") %>%
+  mutate(
+   mortality_rate = total_deaths / total_cases * 100
+  )
+combined_table
+```
+This table added a mortality rate column, calculated as the ratio of total deaths to total cases. Despite having high overall death tolls, New York and New Jersey also have high death rates, which may indicate a more serious effect per reported case. Contrarily, California has a lower death rate, which means that there are comparatively fewer deaths for every case that is documented.States with high total case counts do not always have the greatest total death counts, as can be seen by comparing the two data sets. A more complex view is offered by the mortality rate, which considers the impact's severity in relation to the number of instances that are reported. 
+
+# Summary
+The study aimed to investigate the overall trends of COVID-19 cases and fatalities in the US, along with variations among states and counties. The results revealed a continuous increase trend in cases and fatalities nationwide, with the initial months of 2020 demonstrating stability, likely due to implemented control measures. However, a significant surge was observed starting in April 2020. The research also observed state-specific measures, highlighting the varied impact of the pandemic in different regions. This knowledge is crucial for informed decision-making by public health authorities. The insights contribute to a comprehensive understanding of the pandemic's evolution and regional disparities, assisting policymakers, healthcare providers, and the general public in developing effective strategies. Limitations include the exclusion of potential influencing factors and reliance on reported data, which may exhibit fluctuations. Future analyses may incorporate additional variables and sophisticated statistical models for a more comprehensive understanding. Ongoing updates and improvements will enhance accuracy and relevance over time.
